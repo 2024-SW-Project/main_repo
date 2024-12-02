@@ -2,6 +2,8 @@ package com.example.subwayserver_1.controller;
 
 import com.example.subwayserver_1.entity.UserDetails;
 import com.example.subwayserver_1.repository.UserDetailsRepository;
+import com.example.subwayserver_1.util.PasswordUtil;
+
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -56,13 +58,19 @@ public class MypageController {
      * 비밀번호 변경 요청
      */
     @PutMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, String> passwordRequest) {
+    public ResponseEntity<?> changePassword(@RequestHeader("Authorization") String authorizationHeader,
+                                            @RequestBody Map<String, String> passwordRequest) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).body(Map.of("error_message", "Missing or invalid Authorization header"));
         }
 
         String token = authorizationHeader.replace("Bearer ", "");
-        String username = Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody().getSubject();
+        String username = Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
 
         Optional<UserDetails> optionalUser = userDetailsRepository.findByUsername(username);
         if (optionalUser.isEmpty()) {
@@ -70,14 +78,22 @@ public class MypageController {
         }
 
         UserDetails user = optionalUser.get();
-        if (!user.getPassword().equals(passwordRequest.get("current_password"))) {
+        String currentPassword = passwordRequest.get("current_password");
+        String newPassword = passwordRequest.get("new_password");
+
+        // 현재 비밀번호 확인
+        if (!PasswordUtil.matches(currentPassword, user.getPassword())) {
             return ResponseEntity.status(400).body(Map.of("error_message", "Current password is incorrect"));
         }
 
-        user.setPassword(passwordRequest.get("new_password"));
+        // 새 비밀번호 암호화 후 저장
+        String encryptedNewPassword = PasswordUtil.encodePassword(newPassword);
+        user.setPassword(encryptedNewPassword);
         userDetailsRepository.save(user);
+
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
+
 
     /**
      * 개인정보 수정 요청

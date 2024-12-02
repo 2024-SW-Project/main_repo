@@ -5,11 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.example.subwayserver_1.dto.SubwayLiveResponseDto;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class SubwayLiveService {
@@ -22,7 +19,7 @@ public class SubwayLiveService {
     /**
      * 외부 API 호출 및 데이터 처리
      */
-    public List<SubwayLiveResponseDto> fetchRealtimeSubwayData(String lineName, String updnLine) {
+    public Map<String, Object> fetchRealtimeSubwayData(String lineName, String updnLine) {
         try {
             // API 요청 URL 생성
             String url = BASE_URL + apiKey + "/json/realtimePosition/0/1000/" + lineName;
@@ -35,8 +32,28 @@ public class SubwayLiveService {
             if (response != null && response.containsKey("realtimePositionList")) {
                 List<Map<String, Object>> realtimePositionList = (List<Map<String, Object>>) response.get("realtimePositionList");
 
-                // 필터링: 상행/하행 및 특정 역
-                return realtimePositionList.stream()
+                // 1호선일 경우: 종착역(statnTnm) 기준으로 데이터 분류
+                if ("1호선".equals(lineName)) {
+                    Map<String, List<SubwayLiveResponseDto>> groupedByDestination = realtimePositionList.stream()
+                            .filter(item -> updnLine.equals(item.get("updnLine")))
+                            .map(item -> new SubwayLiveResponseDto(
+                                    (Integer) item.get("totalCount"),
+                                    (Integer) item.get("rowNum"),
+                                    (String) item.get("subwayNm"),
+                                    (String) item.get("statnNm"),
+                                    (String) item.get("trainNo"),
+                                    (String) item.get("updnLine"),
+                                    (String) item.get("statnTnm"),
+                                    (String) item.get("trainSttus"),
+                                    (String) item.get("directAt"),
+                                    (String) item.get("lstcarAt")
+                            ))
+                            .collect(Collectors.groupingBy(SubwayLiveResponseDto::getStatnTnm)); // 종착역 기준으로 그룹화
+                    return Map.of("groupedData", groupedByDestination);
+                }
+
+                // 1호선이 아닐 경우: 단순 리스트 반환
+                List<SubwayLiveResponseDto> filteredData = realtimePositionList.stream()
                         .filter(item -> updnLine.equals(item.get("updnLine")))
                         .map(item -> new SubwayLiveResponseDto(
                                 (Integer) item.get("totalCount"),
@@ -51,12 +68,13 @@ public class SubwayLiveService {
                                 (String) item.get("lstcarAt")
                         ))
                         .collect(Collectors.toList());
+                return Map.of("simpleData", filteredData);
             } else {
-                return List.of(); // 빈 리스트 반환
+                return Map.of("simpleData", List.of()); // 빈 리스트 반환
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return List.of(); // 오류 시 빈 리스트 반환
+            return Map.of("simpleData", List.of()); // 오류 시 빈 리스트 반환
         }
     }
 }

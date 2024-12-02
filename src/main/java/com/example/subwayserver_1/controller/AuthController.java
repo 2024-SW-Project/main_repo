@@ -318,11 +318,12 @@ public class AuthController {
 
         UserDetails user = optionalUser.get();
 
-        // 임시 비밀번호 생성
+        // 임시 비밀번호 생성 및 암호화
         String temporaryPassword = generateTemporaryPassword();
+        String encryptedPassword = PasswordUtil.encodePassword(temporaryPassword);
 
-        // 사용자 비밀번호 업데이트
-        user.setPassword(temporaryPassword);
+        // 암호화된 비밀번호를 저장
+        user.setPassword(encryptedPassword);
         userDetailsRepository.save(user);
 
         // 이메일로 임시 비밀번호 전송
@@ -333,6 +334,7 @@ public class AuthController {
         response.put("message", "Temporary password has been sent to your email");
         return ResponseEntity.ok(response);
     }
+
 
     /**
      * 임시 비밀번호 생성

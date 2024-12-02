@@ -1,12 +1,7 @@
 package com.example.subwayserver_1.util;
 
 import io.github.cdimascio.dotenv.Dotenv;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.SignatureException;
-import org.springframework.beans.factory.annotation.Autowired;
+import io.jsonwebtoken.*;
 
 import java.util.Date;
 
@@ -36,30 +31,29 @@ public class JwtUtil {
     // JWT 검증 및 클레임 반환
     public static Claims validateToken(String token) {
         try {
-            Claims claims = Jwts.parser()
+            return Jwts.parser()
                     .setSigningKey(SECRET_KEY)
                     .parseClaimsJws(token.replace("Bearer ", "")) // "Bearer " 제거
                     .getBody();
-
-            // 디버깅: 토큰 클레임 정보 출력
-            System.out.println("Token claims: " + claims);
-            return claims;
         } catch (ExpiredJwtException e) {
-            throw new RuntimeException("Token has expired", e);
+            throw new RuntimeException("Token has expired. Please re-login.", e);
         } catch (SignatureException e) {
-            throw new RuntimeException("Invalid token signature", e);
+            throw new RuntimeException("Invalid token signature.", e);
+        } catch (MalformedJwtException e) {
+            throw new RuntimeException("Malformed token.", e);
         } catch (Exception e) {
-            throw new RuntimeException("Invalid token", e);
+            throw new RuntimeException("Invalid token. Please check your credentials.", e);
         }
     }
 
     // 토큰에서 사용자 ID 추출
     public static Long extractUserIdFromToken(String token) {
         Claims claims = validateToken(token);
-        if (claims.get("userId") == null) {
-            throw new RuntimeException("User ID not found in token");
+        Object userId = claims.get("userId");
+        if (userId == null) {
+            throw new RuntimeException("User ID not found in token.");
         }
-        return claims.get("userId", Long.class);
+        return Long.valueOf(userId.toString());
     }
 
     // 토큰에서 사용자 이름 추출

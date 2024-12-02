@@ -82,6 +82,24 @@ public class CalendarController {
         this.calendarService = calendarService;
     }
 
+    // 파라미터 없이 요청 시 모든 날짜 반환
+    @GetMapping
+    public Map<String, Object> getCalendarDates(@RequestHeader("Authorization") String token) {
+        Long userId = extractUserIdFromToken(token);
+
+        // 특정 사용자에 저장된 모든 날짜 가져오기
+        List<CalendarRoute> dates = calendarService.getCalendarDates(userId);
+
+        // 응답 데이터 생성
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", Map.of("dates", dates.stream()
+                .map(CalendarRoute::getScheduledDate)
+                .distinct()
+                .toList()));
+        return response;
+    }
+
+    // 특정 날짜에 대한 일정 조회
     @GetMapping(params = "date")
     public Map<String, Object> getRoutesByDate(@RequestHeader("Authorization") String token,
                                                @RequestParam String date) {
