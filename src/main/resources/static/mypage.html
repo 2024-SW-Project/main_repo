@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마이페이지</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            margin: 20px 0;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<h1>마이페이지</h1>
+
+<div class="container">
+    <button onclick="getUserProfile()">개인정보 조회</button>
+    <div id="profileResponse" class="response"></div>
+</div>
+
+<script>
+    async function getUserProfile() {
+        const token = localStorage.getItem("access_token");  // 로그인 후 받은 토큰을 로컬스토리지에서 가져옴
+        if (!token) {
+            alert("로그인이 필요합니다.");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8080/mypage/profile", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+            document.getElementById("profileResponse").innerText = JSON.stringify(data, null, 2);
+        } catch (error) {
+            document.getElementById("profileResponse").innerText = "오류 발생: " + error.message;
+        }
+    }
+</script>
+
+</body>
+</html>

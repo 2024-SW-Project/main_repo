@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f9;
+    }
+    form {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    form h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    form label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    form input[type="text"],
+    form input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    form button {
+      width: 100%;
+      padding: 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    form button:hover {
+      background-color: #45a049;
+    }
+    .message {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 16px;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+<form id="loginForm">
+  <h1>Login</h1>
+  <label for="username">Username:</label>
+  <input type="text" id="username" name="username" required>
+
+  <label for="password">Password:</label>
+  <input type="password" id="password" name="password" required>
+
+  <button type="submit">Login</button>
+  <div id="responseMessage" class="message"></div>
+</form>
+
+<script>
+  const form = document.getElementById('loginForm');
+  const responseMessage = document.getElementById('responseMessage');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    const requestBody = {
+      username: username,
+      password: password
+    };
+
+    try {
+      const response = await fetch('http://localhost:8080/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        responseMessage.style.color = 'green';
+        responseMessage.textContent = 'Login Successful! Access Token: ' + data.access_token;
+        console.log('Response:', data);
+      } else {
+        const errorData = await response.json();
+        responseMessage.style.color = 'red';
+        responseMessage.textContent = errorData.error_message || 'Login Failed!';
+      }
+    } catch (error) {
+      responseMessage.style.color = 'red';
+      responseMessage.textContent = 'Error: Unable to connect to server.';
+      console.error('Error:', error);
+    }
+  });
+</script>
+</body>
+</html>

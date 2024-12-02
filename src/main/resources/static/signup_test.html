@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 및 데이터 확인</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+        }
+        .container {
+            margin: 20px 0;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<h1>회원가입 및 데이터 확인</h1>
+
+<div class="container">
+    <h2>회원가입</h2>
+    <form id="signupForm">
+        <label for="username">아이디 (Username):</label><br>
+        <input type="text" id="username" name="username" required><br><br>
+
+        <label for="email">이메일 (Email):</label><br>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <label for="password">비밀번호 (Password):</label><br>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <label for="name">이름 (Name):</label><br>
+        <input type="text" id="name" name="name" required><br><br>
+
+        <label for="nickname">닉네임 (Nickname):</label><br>
+        <input type="text" id="nickname" name="nickname" required><br><br>
+
+        <label for="isClimateCardEligible">기후동행카드 여부:</label><br>
+        <select id="isClimateCardEligible" name="isClimateCardEligible">
+            <option value="true">예</option>
+            <option value="false">아니오</option>
+        </select><br><br>
+
+        <button type="button" onclick="submitForm()">회원가입</button>
+    </form>
+    <div id="signupResponse" class="response"></div>
+</div>
+
+<div class="container">
+    <h2>등록된 유저 데이터</h2>
+    <button onclick="fetchUsers()">유저 데이터 조회</button>
+    <div id="userList" class="response"></div>
+</div>
+
+<script>
+    async function submitForm() {
+        const form = document.getElementById("signupForm");
+        const formData = new FormData(form);
+
+        // JSON 데이터 생성
+        const data = {
+            username: formData.get("username"),
+            email: formData.get("email"),
+            password: formData.get("password"),
+            name: formData.get("name"),
+            nickname: formData.get("nickname"),
+            isClimateCardEligible: formData.get("isClimateCardEligible") === "true"
+        };
+
+        try {
+            const response = await fetch("http://localhost:8080/auth/signup", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+            document.getElementById("signupResponse").innerText =
+                "응답: " + JSON.stringify(result, null, 2);
+        } catch (error) {
+            document.getElementById("signupResponse").innerText =
+                "오류 발생: " + error.message;
+        }
+    }
+
+    async function fetchUsers() {
+        try {
+            const response = await fetch("http://localhost:8080/auth/users");
+            const users = await response.json();
+
+            let userList = "<ul>";
+            users.forEach(user => {
+                userList += `<li>${JSON.stringify(user)}</li>`;
+            });
+            userList += "</ul>";
+
+            document.getElementById("userList").innerHTML = userList;
+        } catch (error) {
+            document.getElementById("userList").innerText =
+                "유저 데이터를 가져오는 중 오류 발생: " + error.message;
+        }
+    }
+</script>
+</body>
+</html>
