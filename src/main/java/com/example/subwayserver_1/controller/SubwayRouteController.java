@@ -18,6 +18,8 @@ public class SubwayRouteController {
 
     @Autowired
     private TimeminRepository timeminRepository;
+    @Autowired
+    private TraintestRepository traintestRepository;
 
     @PostMapping("/search")
     public Map<String, Object> findDetailedRoute(@RequestBody Map<String, Object> request) {
@@ -26,15 +28,23 @@ public class SubwayRouteController {
         boolean isClimateCardEligible = (boolean) request.get("is_climate_card_eligible");
 
         Map<String, Object> result = new HashMap<>();
-        Map<String, Object> routeResult = findRouteByStrategy(startStationName, endStationName, isClimateCardEligible, true);
+        Map<String, Object> routeResult;
 
+        // 기후동행 여부에 따라 다른 알고리즘 호출
+        if (isClimateCardEligible) {
+            routeResult = findClimateRoute(startStationName, endStationName); // 기후동행 경로 찾기
+        } else {
+            routeResult = findRouteByStrategy(startStationName, endStationName, isClimateCardEligible, true); // 기존 경로 찾기
+        }
+
+        // 경로 검색 결과 처리
         if (!routeResult.containsKey("error")) {
             Map<String, Object> data = new LinkedHashMap<>();
 
             // PathInfo 구성
             Map<String, Object> pathInfo = new LinkedHashMap<>();
-            pathInfo.put("start_station_name", cleanStationName(startStationName)); // 역명 수정
-            pathInfo.put("end_station_name", cleanStationName(endStationName)); // 역명 수정
+            pathInfo.put("start_station_name", cleanStationName(startStationName));
+            pathInfo.put("end_station_name", cleanStationName(endStationName));
             pathInfo.put("travel_time", routeResult.get("totalWeight"));
             pathInfo.put("is_favorite_route", null);
             data.put("pathInfo", pathInfo);
@@ -55,23 +65,23 @@ public class SubwayRouteController {
                 // 환승이 발생하거나 마지막 역에 도달했을 경우
                 if (!previousLine.equals(currentLine) || i == routeStations.length - 1) {
                     Map<String, Object> stationInfo = new LinkedHashMap<>();
-                    stationInfo.put("start_station_name", cleanStationName(segmentStations.get(0))); // 역명 수정
+                    stationInfo.put("start_station_name", cleanStationName(segmentStations.get(0)));
                     stationInfo.put("line_name", previousLine);
                     stationInfo.put("departure_time", null);
                     stationInfo.put("way_code", null);
                     stationInfo.put("fast_train_info", null);
 
-                    // 지나치는 역들은 환승 전까지의 역들만 포함
+                    // 지나치는 역 구성
                     if (i == routeStations.length - 1) {
-                        stationInfo.put("station_name_list", cleanStationNames(segmentStations.subList(1, segmentStations.size()))); // 리스트 내 역명 수정
-                        stationInfo.put("way_station_name", cleanStationName(currentStation)); // 역명 수정
+                        stationInfo.put("station_name_list", cleanStationNames(segmentStations.subList(1, segmentStations.size())));
+                        stationInfo.put("way_station_name", cleanStationName(currentStation));
                     } else {
-                        stationInfo.put("station_name_list", cleanStationNames(segmentStations.subList(1, segmentStations.size()))); // 리스트 내 역명 수정
-                        stationInfo.put("way_station_name", cleanStationName(routeStations[i])); // 역명 수정
+                        stationInfo.put("station_name_list", cleanStationNames(segmentStations.subList(1, segmentStations.size())));
+                        stationInfo.put("way_station_name", cleanStationName(routeStations[i]));
                     }
                     stationInfo.put("arrival_time", null);
 
-                    // 추가
+                    // 리스트에 추가
                     stationList.add(stationInfo);
 
                     // 구간 초기화
@@ -98,7 +108,7 @@ public class SubwayRouteController {
                     Map<String, Object> exchangeInfo = new LinkedHashMap<>();
                     exchangeInfo.put("ex_start_line_num", prevLine);
                     exchangeInfo.put("ex_end_line_num", currentLine);
-                    exchangeInfo.put("ex_station_name", cleanStationName(currentStation)); // 역명 수정
+                    exchangeInfo.put("ex_station_name", cleanStationName(currentStation));
                     exchangeInfo.put("exWalkTime", 3); // 기본 환승 소요 시간
                     exchangeInfoList.add(exchangeInfo);
                 }
@@ -109,7 +119,7 @@ public class SubwayRouteController {
             // 결과 저장
             result.put("data", data);
         } else {
-            result.put("error", "해당 조건으로 경로를 찾을 수 없습니다.");
+            result.put("error", routeResult.get("error")); // 오류 메시지 반환
         }
 
         return result;
@@ -152,6 +162,95 @@ public class SubwayRouteController {
         }
         return cleanedStations;
     }
+
+    private Map<String, Object> findClimateRoute(String startStationName, String endStationName) {
+        // 모든 Timemin 데이터와 Traintest 데이터를 한 번에 조회
+        List<Timemin> edges = timeminRepository.findAll();
+        List<Traintest> allStations = traintestRepository.findAll();
+
+        // 그래프 생성
+        Map<String, List<Timemin>> graph = new HashMap<>();
+        for (Timemin edge : edges) {
+            graph.computeIfAbsent(edge.getDeparture(), k -> new ArrayList<>()).add(edge);
+        }
+
+        // Traintest 데이터를 메모리에 캐싱
+        Map<String, Traintest> stationCache = new HashMap<>();
+        for (Traintest station : allStations) {
+            stationCache.put(station.getStinNm() + "-" + station.getLnNm(), station);
+        }
+
+        // 나머지 알고리즘 유지
+        PriorityQueue<Node> pq = new PriorityQueue<>((a, b) -> {
+            int transferComparison = Integer.compare(a.transferCount, b.transferCount);
+            if (transferComparison != 0) return transferComparison;
+            return Integer.compare(a.totalWeight, b.totalWeight);
+        });
+
+        pq.add(new Node(startStationName, 0, 0, null, new ArrayList<>(), new StringBuilder()));
+        Map<String, Integer> visited = new HashMap<>();
+
+        while (!pq.isEmpty()) {
+            Node current = pq.poll();
+
+            // 이미 방문한 노드인지 확인
+            if (visited.containsKey(current.station) && visited.get(current.station) <= current.totalWeight) {
+                continue;
+            }
+            visited.put(current.station, current.totalWeight);
+
+            // 출발역 체크
+            if (current.route.isEmpty()) {
+                Traintest startStation = stationCache.get(cleanStationName(startStationName) + "-" + extractLine(startStationName));
+                if (startStation != null && Boolean.FALSE.equals(startStation.getBoarding())) {
+                    return Collections.singletonMap("error", "출발역에서 기후동행 승차가 불가능합니다.");
+                }
+            }
+
+            // 도착역 체크
+            if (current.station.equals(endStationName)) {
+                Traintest endStation = stationCache.get(cleanStationName(endStationName) + "-" + extractLine(endStationName));
+                if (endStation != null && Boolean.FALSE.equals(endStation.getAlighting())) {
+                    return Collections.singletonMap("error", "도착역에서 기후동행 하차가 불가능합니다.");
+                }
+
+                // 경로 반환
+                current.route.add(formatStation(current.previousLine, current.station, false));
+                Map<String, Object> result = new HashMap<>();
+                result.put("route", String.join(" -> ", current.route));
+                result.put("totalTransfers", current.transferCount);
+                result.put("totalWeight", current.totalWeight);
+                return result;
+            }
+
+            // 환승역 체크
+            for (Timemin edge : graph.getOrDefault(current.station, new ArrayList<>())) {
+                String nextStation = edge.getArrival();
+                String nextLine = edge.getLine();
+
+                Traintest nextStationInfo = stationCache.get(cleanStationName(nextStation) + "-" + nextLine);
+                if (nextStationInfo != null && Boolean.FALSE.equals(nextStationInfo.getBoarding())) {
+                    continue; // 기후동행 승차 불가능한 역 제외
+                }
+
+                int newWeight = current.totalWeight + edge.getWeight();
+                int newTransferCount = current.transferCount;
+
+                // 환승 발생 여부
+                if (current.previousLine != null && !current.previousLine.equals(nextLine)) {
+                    newTransferCount++;
+                }
+
+                List<String> newRoute = new ArrayList<>(current.route);
+                newRoute.add(formatStation(nextLine, current.station, edge.isExpress()));
+
+                pq.add(new Node(nextStation, newWeight, newTransferCount, nextLine, newRoute, current.calculationDetails.append(" + ").append(edge.getWeight())));
+            }
+        }
+
+        return Collections.singletonMap("error", "기후동행 조건을 만족하는 경로를 찾을 수 없습니다.");
+    }
+
     private Map<String, Object> findRouteByStrategy(String startStationName, String endStationName, boolean isClimateCardEligible, boolean prioritizeTransfers) {
         List<Timemin> edges = timeminRepository.findAll();
 
