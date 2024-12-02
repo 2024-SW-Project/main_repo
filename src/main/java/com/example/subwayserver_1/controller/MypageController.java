@@ -3,6 +3,7 @@ package com.example.subwayserver_1.controller;
 import com.example.subwayserver_1.entity.UserDetails;
 import com.example.subwayserver_1.repository.UserDetailsRepository;
 import com.example.subwayserver_1.util.PasswordUtil;
+import com.example.subwayserver_1.util.JwtUtil;
 
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Value;
@@ -120,4 +121,32 @@ public class MypageController {
         userDetailsRepository.save(user);
         return ResponseEntity.ok(Map.of("data", Map.of("isClimateCardEligible", user.getIsClimateCardEligible()), "message", "Profile updated successfully"));
     }
+
+    /**
+     * 회원탈퇴
+     */
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteUser(@RequestHeader("Authorization") String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error_message", "Missing or invalid Authorization header"));
+        }
+
+        try {
+            // JWT에서 username 추출
+            String username = JwtUtil.extractUsername(authorizationHeader);
+
+            // 사용자 조회 및 삭제
+            Optional<UserDetails> optionalUser = userDetailsRepository.findByUsername(username);
+            if (optionalUser.isPresent()) {
+                userDetailsRepository.delete(optionalUser.get());
+                return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+            } else {
+                return ResponseEntity.status(404).body(Map.of("error_message", "User not found"));
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body(Map.of("error_message", e.getMessage()));
+        }
+    }
+
+
 }

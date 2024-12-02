@@ -28,7 +28,7 @@ public class UserDetails {
     @Column(name = "is_climate_card_eligible", nullable = false)
     private Boolean isClimateCardEligible; // 기후 동행 카드 사용 가능 여부
 
-    @Column(name = "refresh_token")
+    @Column(name = "refresh_token", nullable = true)
     private String refreshToken;
 
     // Getters and Setters

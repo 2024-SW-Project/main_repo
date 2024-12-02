@@ -5,6 +5,7 @@ import com.example.subwayserver_1.repository.UserDetailsRepository;
 import com.example.subwayserver_1.util.PasswordUtil;
 import com.example.subwayserver_1.util.JwtUtil;
 import io.github.cdimascio.dotenv.Dotenv;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -362,6 +363,34 @@ public class AuthController {
         message.setSubject("Your Temporary Password");
         message.setText("Your temporary password is: " + temporaryPassword + "\n\nPlease change your password after logging in.");
         emailSender.send(message);
+    }
+
+    /**
+     * 로그아웃
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body(Map.of("error_message", "Missing or invalid Authorization header"));
+        }
+
+        try {
+            // JWT에서 username 추출
+            String username = JwtUtil.extractUsername(authorizationHeader);
+
+            // 사용자 조회 및 Refresh Token 제거
+            Optional<UserDetails> optionalUser = userDetailsRepository.findByUsername(username);
+            if (optionalUser.isPresent()) {
+                UserDetails user = optionalUser.get();
+                user.setRefreshToken(null); // Refresh Token 무효화
+                userDetailsRepository.save(user); // DB 업데이트
+                return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+            } else {
+                return ResponseEntity.status(404).body(Map.of("error_message", "User not found"));
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body(Map.of("error_message", e.getMessage()));
+        }
     }
 
 

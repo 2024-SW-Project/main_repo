@@ -25,5 +25,6 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, Long> 
     Optional<UserDetails> findByEmail(String email); // email로 조회
     Optional<UserDetails> findByNickname(String nickname); // nickname으로 조회
     Optional<UserDetails> findByNameAndEmail(String name, String email); // name과 email로 조회
+    Optional<UserDetails> findByRefreshToken(String refreshToken); // refreshToken으로 조회
 
 }
