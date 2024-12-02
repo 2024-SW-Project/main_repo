@@ -53,6 +53,7 @@ dependencies {
 	// 개발용 도구
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
 
 	// 테스트 관련 의존성
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

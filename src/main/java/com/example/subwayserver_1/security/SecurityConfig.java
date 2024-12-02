@@ -15,8 +15,13 @@ public class SecurityConfig {
         http
                 .csrf().disable() // CSRF 비활성화
                 .authorizeHttpRequests()
-                .requestMatchers("/auth/signup", "/auth/login", "/auth/refresh-token").permitAll() // 인증 없이 접근 허용
-                .anyRequest().authenticated(); // 나머지 요청은 인증 필요
+                .requestMatchers(
+                        "/mypage/**",  // 마이페이지 경로는 인증 필요
+                        "/subway/save/**" // 저장 관련 경로는 인증 필요
+                ).authenticated()
+                .anyRequest().permitAll() // 그 외 모든 경로는 항상 허용
+                .and()
+                .formLogin().disable(); // (선택) 기본 로그인 폼 비활성화
 
         return http.build();
     }

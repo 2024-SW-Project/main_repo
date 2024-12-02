@@ -4,6 +4,7 @@ import com.example.subwayserver_1.entity.UserDetails;
 import com.example.subwayserver_1.repository.UserDetailsRepository;
 import com.example.subwayserver_1.util.PasswordUtil;
 import com.example.subwayserver_1.util.JwtUtil;
+import io.github.cdimascio.dotenv.Dotenv;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -35,10 +36,12 @@ public class AuthController {
     private UserDetailsRepository userDetailsRepository;
     @Autowired
     private JavaMailSender emailSender;
+    private static final String SECRET_KEY;
 
-    /* @Value("${jwt.secret}")
-     private String secretKey;*/
-    private static final String SECRET_KEY = "thisIsASecretKeyWithEnoughLengthToBeSecure123!";
+    static {
+        Dotenv dotenv = Dotenv.configure().load();
+        SECRET_KEY = dotenv.get("JWT_SECRET", "defaultSecretKey123"); // 기본값 설정
+    }
     private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60; // 1시간
     private static final long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 * 7; // 7일
 
