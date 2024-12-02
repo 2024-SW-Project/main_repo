@@ -126,27 +126,44 @@ public class MypageController {
      * 회원탈퇴
      */
     @DeleteMapping("/delete")
-    public ResponseEntity<?> deleteUser(@RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<?> deleteUser(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestBody Map<String, String> requestBody) {
+
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).body(Map.of("error_message", "Missing or invalid Authorization header"));
         }
 
+        // 입력된 비밀번호 추출
+        String inputPassword = requestBody.get("password");
+        if (inputPassword == null || inputPassword.isEmpty()) {
+            return ResponseEntity.status(400).body(Map.of("error_message", "Password is required"));
+        }
+
         try {
-            // JWT에서 username 추출
+            // JWT에서 사용자명 추출
             String username = JwtUtil.extractUsername(authorizationHeader);
 
-            // 사용자 조회 및 삭제
+            // 사용자 조회
             Optional<UserDetails> optionalUser = userDetailsRepository.findByUsername(username);
-            if (optionalUser.isPresent()) {
-                userDetailsRepository.delete(optionalUser.get());
-                return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
-            } else {
+            if (optionalUser.isEmpty()) {
                 return ResponseEntity.status(404).body(Map.of("error_message", "User not found"));
             }
+
+            UserDetails user = optionalUser.get();
+
+            // 비밀번호 확인
+            if (!PasswordUtil.matches(inputPassword, user.getPassword())) {
+                return ResponseEntity.status(401).body(Map.of("error_message", "Password does not match"));
+            }
+
+            // 사용자 삭제
+            userDetailsRepository.delete(user);
+
+            return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(401).body(Map.of("error_message", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error_message", e.getMessage()));
         }
     }
-
 
 }
