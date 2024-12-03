@@ -32,8 +32,11 @@ public class SubwayLiveService {
             if (response != null && response.containsKey("realtimePositionList")) {
                 List<Map<String, Object>> realtimePositionList = (List<Map<String, Object>>) response.get("realtimePositionList");
 
-                // 1호선일 경우: 종착역(statnTnm) 기준으로 데이터 분류
-                if ("1호선".equals(lineName)) {
+                // 처리할 호선 목록
+                List<String> groupLines = List.of("1호선", "2호선", "5호선", "경춘선", "경의중앙선");
+
+                // 그룹화할 호선일 경우: 종착역(statnTnm) 기준으로 데이터 분류
+                if (groupLines.contains(lineName)) {
                     Map<String, List<SubwayLiveResponseDto>> groupedByDestination = realtimePositionList.stream()
                             .filter(item -> updnLine.equals(item.get("updnLine")))
                             .map(item -> new SubwayLiveResponseDto(
@@ -49,10 +52,27 @@ public class SubwayLiveService {
                                     (String) item.get("lstcarAt")
                             ))
                             .collect(Collectors.groupingBy(SubwayLiveResponseDto::getStatnTnm)); // 종착역 기준으로 그룹화
-                    return Map.of("groupedData", groupedByDestination);
+
+                    List<SubwayLiveResponseDto> filteredData = realtimePositionList.stream()
+                            .filter(item -> updnLine.equals(item.get("updnLine")))
+                            .map(item -> new SubwayLiveResponseDto(
+                                    (Integer) item.get("totalCount"),
+                                    (Integer) item.get("rowNum"),
+                                    (String) item.get("subwayNm"),
+                                    (String) item.get("statnNm"),
+                                    (String) item.get("trainNo"),
+                                    (String) item.get("updnLine"),
+                                    (String) item.get("statnTnm"),
+                                    (String) item.get("trainSttus"),
+                                    (String) item.get("directAt"),
+                                    (String) item.get("lstcarAt")
+                            ))
+                            .collect(Collectors.toList());
+
+                    return Map.of("simpleData", filteredData, "groupedData", groupedByDestination);
                 }
 
-                // 1호선이 아닐 경우: 단순 리스트 반환
+                // 그룹화되지 않은 호선들에 대해서는 단순 리스트 반환
                 List<SubwayLiveResponseDto> filteredData = realtimePositionList.stream()
                         .filter(item -> updnLine.equals(item.get("updnLine")))
                         .map(item -> new SubwayLiveResponseDto(
@@ -68,7 +88,7 @@ public class SubwayLiveService {
                                 (String) item.get("lstcarAt")
                         ))
                         .collect(Collectors.toList());
-                return Map.of("simpleData", filteredData);
+                return Map.of("simpleData", filteredData); // 빈 리스트 반환
             } else {
                 return Map.of("simpleData", List.of()); // 빈 리스트 반환
             }
@@ -78,3 +98,4 @@ public class SubwayLiveService {
         }
     }
 }
+

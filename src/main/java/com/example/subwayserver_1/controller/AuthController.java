@@ -61,14 +61,14 @@ public class AuthController {
             return ResponseEntity.status(409).body(response);
         }
 
-/*        // 이메일 중복 체크
+        // 이메일 중복 체크
         if (isEmailTaken(userDetails.getEmail())) {
             Long existingUserId = getExistingUserIdByEmail(userDetails.getEmail());
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("error_message", "Registration failed");
             response.put("userId", existingUserId);
             return ResponseEntity.status(409).body(response);
-        }*/
+        }
 
         // 닉네임 중복 체크
         if (isNicknameTaken(userDetails.getNickname())) {

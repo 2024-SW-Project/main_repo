@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface FavoriteRouteRepository extends JpaRepository<FavoriteRoute, Long> {
     List<FavoriteRoute> findByUserId(Long userId);
+    void deleteByUserId(Long userId); // 추가
+
 }

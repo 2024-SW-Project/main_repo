@@ -4,12 +4,14 @@ import com.example.subwayserver_1.entity.UserDetails;
 import com.example.subwayserver_1.repository.UserDetailsRepository;
 import com.example.subwayserver_1.util.PasswordUtil;
 import com.example.subwayserver_1.util.JwtUtil;
-
+import com.example.subwayserver_1.repository.CalendarRouteRepository; // 추가
+import com.example.subwayserver_1.repository.FavoriteRouteRepository; // 추가
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional; // 추가
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,7 +26,19 @@ public class MypageController {
     private String secretKey;
 
     @Autowired
+    private JwtUtil jwtUtil; // JwtUtil 주입
+
+    @Autowired
+    private PasswordUtil passwordUtil; // PasswordUtil 주입
+
+    @Autowired
     private UserDetailsRepository userDetailsRepository;
+
+    @Autowired
+    private CalendarRouteRepository calendarRouteRepository; // CalendarRouteRepository 주입
+
+    @Autowired
+    private FavoriteRouteRepository favoriteRouteRepository; // FavoriteRouteRepository 주입
 
     /**
      * 사용자 프로필 조회
@@ -125,6 +139,7 @@ public class MypageController {
     /**
      * 회원탈퇴
      */
+    @Transactional
     @DeleteMapping("/delete")
     public ResponseEntity<?> deleteUser(
             @RequestHeader("Authorization") String authorizationHeader,
@@ -157,13 +172,21 @@ public class MypageController {
                 return ResponseEntity.status(401).body(Map.of("error_message", "Password does not match"));
             }
 
+            // 사용자 아이디를 통해 연관된 데이터 삭제
+            // 캘린더 데이터 삭제
+            calendarRouteRepository.deleteByUserId(user.getId());
+
+            // 즐겨찾기 데이터 삭제
+            favoriteRouteRepository.deleteByUserId(user.getId());
+
             // 사용자 삭제
             userDetailsRepository.delete(user);
 
-            return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+            return ResponseEntity.ok(Map.of("message", "Account and related data deleted successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.status(500).body(Map.of("error_message", e.getMessage()));
         }
     }
+
 
 }

@@ -2,9 +2,11 @@ package com.example.subwayserver_1.util;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import io.jsonwebtoken.*;
+import org.springframework.stereotype.Component;  // 추가
 
 import java.util.Date;
 
+@Component  // JwtUtil을 Spring 빈으로 등록
 public class JwtUtil {
 
     // SECRET_KEY를 환경 변수에서 가져옴

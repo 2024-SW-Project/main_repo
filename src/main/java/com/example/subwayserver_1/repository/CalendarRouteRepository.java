@@ -8,4 +8,6 @@ import java.util.List;
 public interface CalendarRouteRepository extends JpaRepository<CalendarRoute, Long> {
     List<CalendarRoute> findByUserId(Long userId);
     List<CalendarRoute> findByUserIdAndScheduledDate(Long userId, LocalDate date);
+    void deleteByUserId(Long userId); // 추가
+
 }
