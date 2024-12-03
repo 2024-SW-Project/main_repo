@@ -114,7 +114,8 @@ public class MypageController {
      * 개인정보 수정 요청
      */
     @PatchMapping("/profile")
-    public ResponseEntity<?> updateUserProfile(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Map<String, Object> updateRequest) {
+    public ResponseEntity<?> updateUserProfile(@RequestHeader("Authorization") String authorizationHeader,
+                                               @RequestBody Map<String, Object> updateRequest) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).body(Map.of("error_message", "Missing or invalid Authorization header"));
         }
@@ -128,13 +129,33 @@ public class MypageController {
         }
 
         UserDetails user = optionalUser.get();
+
+        // 요청 받은 필드에 대해 업데이트
+        if (updateRequest.containsKey("name")) {
+            user.setName((String) updateRequest.get("name"));
+        }
+
+        if (updateRequest.containsKey("nickname")) {
+            user.setNickname((String) updateRequest.get("nickname"));
+        }
+
+        if (updateRequest.containsKey("email")) {
+            user.setEmail((String) updateRequest.get("email"));
+        }
+
         if (updateRequest.containsKey("isClimateCardEligible")) {
             user.setIsClimateCardEligible((Boolean) updateRequest.get("isClimateCardEligible"));
         }
 
+        // 업데이트된 사용자 정보 저장
         userDetailsRepository.save(user);
-        return ResponseEntity.ok(Map.of("data", Map.of("isClimateCardEligible", user.getIsClimateCardEligible()), "message", "Profile updated successfully"));
+
+        // 응답 반환
+        return ResponseEntity.ok(Map.of("data", Map.of("name", user.getName(), "nickname", user.getNickname(),
+                        "email", user.getEmail(), "isClimateCardEligible", user.getIsClimateCardEligible()),
+                "message", "Profile updated successfully"));
     }
+
 
     /**
      * 회원탈퇴

@@ -273,6 +273,25 @@ public class AuthController {
 
         return ResponseEntity.ok(response); // 사용 가능하면 200 반환
     }
+
+    /**
+     * 이메일 중복 체크
+     */
+    @GetMapping("/signup/check-email")
+    public ResponseEntity<?> checkEmail(@RequestParam("email") String email) {
+        boolean isAvailable = !isEmailTaken(email);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("isAvailable", isAvailable);
+
+        if (!isAvailable) {
+            response.put("error_message", "Email already exists");
+            return ResponseEntity.status(409).body(response); // 중복이 있을 때 409 반환
+        }
+
+        return ResponseEntity.ok(response); // 사용 가능하면 200 반환
+    }
+
     /**
      * 아이디 찾기
      */
