@@ -163,6 +163,10 @@ public class AuthController {
             userDetailsRepository.save(user); // DB 업데이트
         }
 
+        // 기후동행카드 여부 조회
+        Boolean isClimateCardEligible = user.getIsClimateCardEligible(); // Boolean으로 받아오기
+        Integer isClimateCardEligibleInt = isClimateCardEligible != null && isClimateCardEligible ? 1 : 0; // Integer로 변환
+
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + accessToken);
         headers.set("Refresh-Token", refreshToken);
@@ -171,6 +175,7 @@ public class AuthController {
         userInfo.put("user_id", user.getId());
         userInfo.put("nickname", user.getNickname());
         userInfo.put("profile_picture", "http://example.com/profile/" + user.getId());
+        userInfo.put("is_climate_card_eligible", isClimateCardEligibleInt); // Integer로 변환한 값을 추가
 
         Map<String, Object> responseBody = new LinkedHashMap<>();
         responseBody.put("user_info", userInfo);

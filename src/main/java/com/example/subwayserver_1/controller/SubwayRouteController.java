@@ -7,6 +7,9 @@ import com.example.subwayserver_1.repository.TraintestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import com.example.subwayserver_1.repository.FavoriteRouteRepository;
+import com.example.subwayserver_1.util.JwtUtil;
+import com.example.subwayserver_1.entity.FavoriteRoute;
 
 
 import java.util.*;
@@ -20,6 +23,45 @@ public class SubwayRouteController {
     private TimeminRepository timeminRepository;
     @Autowired
     private TraintestRepository traintestRepository;
+    @Autowired
+    private FavoriteRouteRepository favoriteRouteRepository;
+
+    @PostMapping("/favorites/check")
+    public Map<String, Object> checkFavoriteRoute(
+            @RequestHeader("Authorization") String token,
+            @RequestBody Map<String, Object> request
+    ) {
+        // JWT 토큰에서 사용자 ID 추출
+        Long userId = JwtUtil.extractUserIdFromToken(token);
+
+        // 요청에서 출발역, 도착역, 기후동행 여부 추출
+        String startStationName = (String) request.get("start_station_name");
+        String endStationName = (String) request.get("end_station_name");
+        boolean isClimateCardEligible = (boolean) request.get("is_climate_card_eligible");
+
+        // 응답 데이터 초기화
+        Map<String, Object> response = new HashMap<>();
+
+        // 즐겨찾기 테이블에서 조건에 맞는 데이터 조회
+        List<FavoriteRoute> favoriteRoutes = favoriteRouteRepository.findByUserIdAndStations(
+                userId,
+                startStationName,
+                endStationName,
+                isClimateCardEligible
+        );
+
+        // 조회 결과에 따라 응답 데이터 구성
+        if (!favoriteRoutes.isEmpty()) {
+            response.put("favorite_route", true);
+            response.put("favorite_id", favoriteRoutes.get(0).getId());
+        } else {
+            response.put("favorite_route", false);
+            response.put("favorite_id", null);
+        }
+
+        return response;
+    }
+
 
     @PostMapping("/search")
     public Map<String, Object> findDetailedRoute(@RequestBody Map<String, Object> request) {
