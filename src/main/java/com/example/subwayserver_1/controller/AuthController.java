@@ -143,9 +143,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 로그인 (JWT 토큰 발급 포함)
-     */
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> loginWithToken(@RequestBody Map<String, String> loginRequest) {
         String username = loginRequest.get("username");
@@ -167,18 +164,23 @@ public class AuthController {
         user.setRefreshToken(refreshToken);
         userDetailsRepository.save(user); // DB 업데이트
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + accessToken);
-        headers.set("Refresh-Token", refreshToken);
-
+        // 응답에 필요한 정보 구성
         Map<String, Object> responseBody = new LinkedHashMap<>();
-        responseBody.put("user_id", user.getId());
-        responseBody.put("nickname", user.getNickname());
+        responseBody.put("token_type", "bearer");
+        responseBody.put("access_token", accessToken);
+        responseBody.put("refresh_token", refreshToken);
 
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(responseBody);
+        Map<String, Object> userInfo = new LinkedHashMap<>();
+        userInfo.put("user_id", user.getId());
+        userInfo.put("nickname", user.getNickname());
+        userInfo.put("profile_picture", "http://example.com/profile/" + user.getId());
+
+        responseBody.put("user_info", userInfo);
+
+        // 응답 반환
+        return ResponseEntity.ok(responseBody);
     }
+
 
 
     /**
