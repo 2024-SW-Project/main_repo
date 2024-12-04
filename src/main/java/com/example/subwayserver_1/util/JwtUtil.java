@@ -19,13 +19,16 @@ public class JwtUtil {
 
     private static final long EXPIRATION_TIME = 1000 * 60 * 60; // 1시간 (ms 단위)
 
+
+//    private static final long EXPIRATION_TIME = 1000 * 60 * 3; // 3분
+
     // JWT 생성
-    public static String generateToken(String username, Long userId) {
+    public static String generateToken(String username, Long userId, long expirationTime) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("userId", userId) // userId를 클레임에 포함
+                .claim("userId", userId)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
                 .compact();
     }

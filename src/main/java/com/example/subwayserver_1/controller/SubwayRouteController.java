@@ -72,96 +72,93 @@ public class SubwayRouteController {
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> routeResult;
 
-        // 기후동행 여부에 따라 다른 알고리즘 호출
+        // 최단 거리 경로 구하기
         if (isClimateCardEligible) {
-            routeResult = findClimateRoute(startStationName, endStationName); // 기후동행 경로 찾기
+            routeResult = findClimateRoute(startStationName, endStationName);
         } else {
-            routeResult = findRouteByStrategy(startStationName, endStationName, isClimateCardEligible, true); // 기존 경로 찾기
+            routeResult = findRouteByStrategy(startStationName, endStationName, isClimateCardEligible, true);
         }
 
-        // 경로 검색 결과 처리
         if (!routeResult.containsKey("error")) {
             Map<String, Object> data = new LinkedHashMap<>();
-
-            // PathInfo 구성
-            Map<String, Object> pathInfo = new LinkedHashMap<>();
-            pathInfo.put("start_station_name", cleanStationName(startStationName));
-            pathInfo.put("end_station_name", cleanStationName(endStationName));
-            pathInfo.put("travel_time", routeResult.get("totalWeight"));
-            pathInfo.put("is_favorite_route", null);
-            data.put("pathInfo", pathInfo);
-
-            // OnStationSet 구성
-            Map<String, Object> onStationSet = new LinkedHashMap<>();
-            List<Map<String, Object>> stationList = new ArrayList<>();
-
             String route = (String) routeResult.get("route");
             String[] routeStations = route.split(" -> ");
-            List<String> segmentStations = new ArrayList<>();
+            List<Map<String, Object>> stationList = new ArrayList<>();
+            List<Map<String, Object>> exchangeInfoList = new ArrayList<>();
+            Random random = new Random();
+            int totalTravelTime = 0;
 
             String previousLine = extractLine(routeStations[0]);
-            for (int i = 0; i < routeStations.length; i++) {
+            String segmentStartStation = routeStations[0]; // 구간 시작 역
+            List<String> segmentStations = new ArrayList<>();
+            int segmentTime = 0;
+
+            for (int i = 1; i < routeStations.length; i++) {
                 String currentStation = routeStations[i];
                 String currentLine = extractLine(currentStation);
 
-                // 환승이 발생하거나 마지막 역에 도달했을 경우
-                if (!previousLine.equals(currentLine) || i == routeStations.length - 1) {
+                // 중간역 포함 구간별 가중치 합산
+                Optional<Timemin> segmentInfo = timeminRepository.findByDepartureAndArrivalAndLine(
+                        cleanStationName(routeStations[i - 1]), cleanStationName(currentStation), previousLine
+                );
+                segmentTime += segmentInfo.map(Timemin::getWeight).orElse(0);
+
+                // 중간 정차역 추가
+                if (i != routeStations.length - 1 && currentLine.equals(previousLine)) {
+                    segmentStations.add(cleanStationName(currentStation));
+                }
+
+                // 환승 발생 또는 마지막 역일 때 구간 저장
+                if (i == routeStations.length - 1 || !currentLine.equals(previousLine)) {
                     Map<String, Object> stationInfo = new LinkedHashMap<>();
-                    stationInfo.put("start_station_name", cleanStationName(segmentStations.get(0)));
+                    stationInfo.put("start_station_name", cleanStationName(segmentStartStation));
                     stationInfo.put("line_name", previousLine);
                     stationInfo.put("departure_time", null);
                     stationInfo.put("way_code", null);
                     stationInfo.put("fast_train_info", null);
-
-                    // 지나치는 역 구성
-                    if (i == routeStations.length - 1) {
-                        stationInfo.put("station_name_list", cleanStationNames(segmentStations.subList(1, segmentStations.size())));
-                        stationInfo.put("way_station_name", cleanStationName(currentStation));
-                    } else {
-                        stationInfo.put("station_name_list", cleanStationNames(segmentStations.subList(1, segmentStations.size())));
-                        stationInfo.put("way_station_name", cleanStationName(routeStations[i]));
-                    }
+                    stationInfo.put("station_name_list", new ArrayList<>(segmentStations)); // 중간 정차역만 포함
+                    stationInfo.put("way_station_name", cleanStationName(currentStation));
                     stationInfo.put("arrival_time", null);
+                    stationInfo.put("time", segmentTime); // 구간별 총 가중치
 
-                    // 리스트에 추가
                     stationList.add(stationInfo);
+                    totalTravelTime += segmentTime;
+
+                    // 환승 정보 추가
+                    if (!currentLine.equals(previousLine)) {
+                        int walkTime = random.nextInt(5) + 1; // 1~5 사이 랜덤 환승 시간
+                        totalTravelTime += walkTime;
+
+                        Map<String, Object> exchangeInfo = new LinkedHashMap<>();
+                        exchangeInfo.put("ex_start_line_num", previousLine);
+                        exchangeInfo.put("ex_end_line_num", currentLine);
+                        exchangeInfo.put("ex_station_name", cleanStationName(segmentStartStation));
+                        exchangeInfo.put("exWalkTime", walkTime);
+
+                        exchangeInfoList.add(exchangeInfo);
+                    }
 
                     // 구간 초기화
+                    segmentStartStation = currentStation; // 새로운 구간의 시작 역
                     segmentStations.clear();
-                }
-
-                segmentStations.add(currentStation);
-                previousLine = currentLine;
-            }
-            onStationSet.put("station", stationList);
-            data.put("onStationSet", onStationSet);
-
-            // ExChangeInfoSet 구성
-            Map<String, Object> exChangeInfoSet = new LinkedHashMap<>();
-            List<Map<String, Object>> exchangeInfoList = new ArrayList<>();
-
-            for (int i = 1; i < routeStations.length; i++) {
-                String prevStation = routeStations[i - 1];
-                String currentStation = routeStations[i];
-                String prevLine = extractLine(prevStation);
-                String currentLine = extractLine(currentStation);
-
-                if (!prevLine.equals(currentLine)) {
-                    Map<String, Object> exchangeInfo = new LinkedHashMap<>();
-                    exchangeInfo.put("ex_start_line_num", prevLine);
-                    exchangeInfo.put("ex_end_line_num", currentLine);
-                    exchangeInfo.put("ex_station_name", cleanStationName(currentStation));
-                    exchangeInfo.put("exWalkTime", 3); // 기본 환승 소요 시간
-                    exchangeInfoList.add(exchangeInfo);
+                    segmentTime = 0; // 새 구간을 위한 초기화
+                    previousLine = currentLine;
                 }
             }
-            exChangeInfoSet.put("exChangeInfo", exchangeInfoList);
-            data.put("exChangeInfoSet", exChangeInfoSet);
 
-            // 결과 저장
+            Map<String, Object> pathInfo = new LinkedHashMap<>();
+            pathInfo.put("start_station_name", cleanStationName(startStationName));
+            pathInfo.put("end_station_name", cleanStationName(endStationName));
+            pathInfo.put("travel_time", totalTravelTime); // 총 이동 시간
+            pathInfo.put("is_favorite_route", null);
+
+            data.put("pathInfo", pathInfo);
+            data.put("onStationSet", Map.of("station", stationList));
+            data.put("exChangeInfoSet", Map.of("exChangeInfo", exchangeInfoList));
+
             result.put("data", data);
         } else {
-            result.put("error", routeResult.get("error")); // 오류 메시지 반환
+            result.put("error", routeResult.get("error"));
         }
 
         return result;

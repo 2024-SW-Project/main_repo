@@ -6,6 +6,9 @@ import com.example.subwayserver_1.util.PasswordUtil;
 import com.example.subwayserver_1.util.JwtUtil;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.transaction.annotation.Transactional;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.SignatureException;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -46,6 +49,12 @@ public class AuthController {
 
     private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60; // 1시간
     private static final long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 24 * 7; // 7일
+
+//        private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 3; // 3분
+//    private static final long REFRESH_TOKEN_EXPIRATION =  1000 * 60 * 10; // 10분
+
+
+
 
     /**
      * 회원가입
@@ -140,45 +149,31 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> loginWithToken(@RequestBody Map<String, String> loginRequest) {
         String username = loginRequest.get("username");
-        String rawPassword = loginRequest.get("password"); // 사용자가 입력한 원본 비밀번호
+        String rawPassword = loginRequest.get("password");
 
         Optional<UserDetails> optionalUser = userDetailsRepository.findByUsername(username);
 
-        // 사용자 검증 및 비밀번호 확인
-        if (optionalUser.isEmpty() ||
-                !PasswordUtil.matches(rawPassword, optionalUser.get().getPassword())) {
+        if (optionalUser.isEmpty() || !PasswordUtil.matches(rawPassword, optionalUser.get().getPassword())) {
             return ResponseEntity.status(401).body(Map.of("error_message", "Invalid username or password"));
         }
 
         UserDetails user = optionalUser.get();
 
         // Access Token 생성
-        String accessToken = JwtUtil.generateToken(user.getUsername(), user.getId());
+        String accessToken = JwtUtil.generateToken(user.getUsername(), user.getId(), ACCESS_TOKEN_EXPIRATION);
 
-        // Refresh Token 확인 및 생성
-        String refreshToken = user.getRefreshToken();
-        if (refreshToken == null || refreshToken.isEmpty()) {
-            refreshToken = JwtUtil.generateToken(user.getUsername(), user.getId());
-            user.setRefreshToken(refreshToken);
-            userDetailsRepository.save(user); // DB 업데이트
-        }
-
-        // 기후동행카드 여부 조회
-        Boolean isClimateCardEligible = user.getIsClimateCardEligible(); // Boolean으로 받아오기
-        Integer isClimateCardEligibleInt = isClimateCardEligible != null && isClimateCardEligible ? 1 : 0; // Integer로 변환
+        // Refresh Token 생성
+        String refreshToken = JwtUtil.generateToken(user.getUsername(), user.getId(), REFRESH_TOKEN_EXPIRATION);
+        user.setRefreshToken(refreshToken);
+        userDetailsRepository.save(user); // DB 업데이트
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + accessToken);
         headers.set("Refresh-Token", refreshToken);
 
-        Map<String, Object> userInfo = new LinkedHashMap<>();
-        userInfo.put("user_id", user.getId());
-        userInfo.put("nickname", user.getNickname());
-        userInfo.put("profile_picture", "http://example.com/profile/" + user.getId());
-        userInfo.put("is_climate_card_eligible", isClimateCardEligibleInt); // Integer로 변환한 값을 추가
-
         Map<String, Object> responseBody = new LinkedHashMap<>();
-        responseBody.put("user_info", userInfo);
+        responseBody.put("user_id", user.getId());
+        responseBody.put("nickname", user.getNickname());
 
         return ResponseEntity.ok()
                 .headers(headers)
@@ -186,20 +181,21 @@ public class AuthController {
     }
 
 
+    /**
+     * 리프레시 토큰으로 엑세스 토큰 재발급
+     */
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshAccessToken(@RequestHeader("Refresh-Token") String refreshToken) {
         String username;
 
         // Refresh Token 검증
         try {
-            username = Jwts.parserBuilder()
-                    .setSigningKey(SECRET_KEY)
-                    .build()
-                    .parseClaimsJws(refreshToken)
-                    .getBody()
-                    .getSubject();
+            Claims claims = JwtUtil.validateToken(refreshToken);
+            username = claims.getSubject();
+        } catch (ExpiredJwtException e) {
+            return ResponseEntity.status(401).body(Map.of("error_message", "Refresh Token has expired. Please login again."));
         } catch (Exception e) {
-            return ResponseEntity.status(401).body(Map.of("error_message", "Invalid or expired Refresh Token"));
+            return ResponseEntity.status(401).body(Map.of("error_message", "Invalid Refresh Token"));
         }
 
         // 사용자 확인 및 Refresh Token 일치 여부 검사
@@ -208,38 +204,32 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error_message", "Invalid Refresh Token"));
         }
 
-        // 새로운 Access Token 발급
-        String newAccessToken = generateToken(username, ACCESS_TOKEN_EXPIRATION);
+        // 새로운 Access Token 생성
+        String newAccessToken = JwtUtil.generateToken(username, optionalUser.get().getId(), ACCESS_TOKEN_EXPIRATION);
 
         return ResponseEntity.ok(Map.of("access_token", newAccessToken));
     }
+
 
     /**
      * 사용자 프로필 조회
      */
     @GetMapping("/mypage/profile")
     public ResponseEntity<?> getUserProfile(@RequestHeader("Authorization") String authorizationHeader) {
-        // Authorization 헤더 검증
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).body(Map.of("error_message", "Missing or invalid Authorization header"));
         }
 
-        // Bearer 토큰에서 실제 토큰 값 추출
         String token = authorizationHeader.replace("Bearer ", "");
-
         String username;
+
         try {
-            username = Jwts.parserBuilder()
-                    .setSigningKey(SECRET_KEY)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getSubject();
+            Claims claims = JwtUtil.validateToken(token);
+            username = claims.getSubject();
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("error_message", "Invalid or expired token"));
         }
 
-        // 데이터베이스에서 사용자 조회
         Optional<UserDetails> optionalUser = userDetailsRepository.findByUsername(username);
 
         if (optionalUser.isEmpty()) {
@@ -248,14 +238,9 @@ public class AuthController {
 
         UserDetails user = optionalUser.get();
 
-        // 사용자 프로필 정보 생성
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("profile_picture", "http://example.com/profile/" + user.getId());
-        response.put("name", user.getName()); // 사용자 이름
-        response.put("username", user.getUsername()); // 사용자 아이디
-        response.put("nickname", user.getNickname()); // 사용자 닉네임
-        response.put("isClimateCardEligible", user.getIsClimateCardEligible()); // 기후동행카드 사용 가능 여부
-        response.put("email", user.getEmail()); // 사용자 이메일
+        response.put("username", user.getUsername());
+        response.put("nickname", user.getNickname());
 
         return ResponseEntity.ok(response);
     }
