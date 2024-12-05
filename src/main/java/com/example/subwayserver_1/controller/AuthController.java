@@ -164,21 +164,17 @@ public class AuthController {
         user.setRefreshToken(refreshToken);
         userDetailsRepository.save(user); // DB 업데이트
 
-        // 응답에 필요한 정보 구성
-        Map<String, Object> responseBody = new LinkedHashMap<>();
-        responseBody.put("token_type", "bearer");
-        responseBody.put("access_token", accessToken);
-        responseBody.put("refresh_token", refreshToken);
-
+        // 응답에 필요한 사용자 정보 구성
         Map<String, Object> userInfo = new LinkedHashMap<>();
         userInfo.put("user_id", user.getId());
         userInfo.put("nickname", user.getNickname());
         userInfo.put("profile_picture", "http://example.com/profile/" + user.getId());
 
-        responseBody.put("user_info", userInfo);
-
-        // 응답 반환
-        return ResponseEntity.ok(responseBody);
+        // 헤더에 토큰 추가
+        return ResponseEntity.ok()
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Refresh-Token", refreshToken)
+                .body(userInfo);
     }
 
 

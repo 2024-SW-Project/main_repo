@@ -21,14 +21,14 @@ public class Timemin {
     @Column(name = "weight")
     private int weight;
 
-    @Column(name = "express")
-    private boolean express;
+    @Column(name = "express") // DB에서 0, 1로 저장되는 정수형 값
+    private int express;
 
     public boolean isExpress() {
-        return express;
+        return express == 1; // express가 1이면 true 반환
     }
 
-    public void setExpress(boolean express) {
+    public void setExpress(int express) {
         this.express = express;
     }
 
