@@ -33,6 +33,7 @@ public class FavoriteController {
         // 즐겨찾기 데이터를 매핑하여 반환 형식 지정
         List<Map<String, Object>> formattedFavorites = favorites.stream().map(favorite -> {
             Map<String, Object> map = new HashMap<>();
+            map.put("id", favorite.getId()); // ID 추가
             map.put("start_station_name", favorite.getStartStationName());
             map.put("end_station_name", favorite.getEndStationName());
             map.put("is_climate_card_eligible", favorite.getIsClimateCardEligible());
@@ -44,10 +45,26 @@ public class FavoriteController {
         response.put("data", Map.of("favorites", formattedFavorites));
         return response;
     }
+    // 즐겨찾기 삭제
+    @DeleteMapping("/delete")
+    public Map<String, Object> deleteFavorite(@RequestHeader("id") Long id) {
+        // 즐겨찾기 삭제 서비스 호출
+        boolean isDeleted = favoriteService.deleteFavorite(id);
+
+        // 결과 반환
+        Map<String, Object> response = new HashMap<>();
+        if (isDeleted) {
+            response.put("message", "Favorite deleted successfully.");
+            response.put("status", "success");
+        } else {
+            response.put("message", "Favorite not found or could not be deleted.");
+            response.put("status", "failure");
+        }
+        return response;
+    }
 
     // 토큰에서 사용자 ID 추출
     private Long extractUserIdFromToken(String token) {
         return JwtUtil.extractUserIdFromToken(token);
     }
 }
-

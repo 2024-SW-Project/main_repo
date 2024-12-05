@@ -19,4 +19,12 @@ public class FavoriteService {
         // userId로 데이터 조회
         return favoriteRouteRepository.findByUserId(userId);
     }
+    // 특정 ID로 즐겨찾기 삭제
+    public boolean deleteFavorite(Long id) {
+        if (favoriteRouteRepository.existsById(id)) { // ID 존재 여부 확인
+            favoriteRouteRepository.deleteById(id);   // 해당 ID 삭제
+            return true;
+        }
+        return false; // ID가 없으면 false 반환
+    }
 }

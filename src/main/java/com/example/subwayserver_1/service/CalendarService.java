@@ -25,4 +25,13 @@ public class CalendarService {
     public List<CalendarRoute> getRoutesByDate(Long userId, LocalDate date) {
         return calendarRouteRepository.findByUserIdAndScheduledDate(userId, date);
     }
+
+    // 특정 ID로 일정 삭제
+    public boolean deleteCalendarRoute(Long id) {
+        if (calendarRouteRepository.existsById(id)) { // ID 존재 여부 확인
+            calendarRouteRepository.deleteById(id);   // 해당 ID 삭제
+            return true;
+        }
+        return false; // ID가 없으면 false 반환
+    }
 }

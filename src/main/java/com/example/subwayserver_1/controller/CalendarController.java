@@ -113,6 +113,7 @@ public class CalendarController {
         List<Map<String, Object>> filteredRoutes = routes.stream()
                 .map(route -> {
                     Map<String, Object> map = new HashMap<>();
+                    map.put("id", route.getId()); // ID 추가
                     map.put("start_station_name", route.getStartStationName());
                     map.put("end_station_name", route.getEndStationName());
                     map.put("is_climate_card_eligible", route.getIsClimateCardEligible());
@@ -127,6 +128,24 @@ public class CalendarController {
         response.put("data", Map.of("routes", filteredRoutes));
         return response;
     }
+    @DeleteMapping("/delete")
+    public Map<String, Object> deleteCalendarRoute(@RequestHeader("id") Long id) {
+        // 해당 ID로 일정 삭제
+        boolean isDeleted = calendarService.deleteCalendarRoute(id);
+
+        // 응답 생성
+        Map<String, Object> response = new HashMap<>();
+        if (isDeleted) {
+            response.put("message", "Calendar route deleted successfully.");
+            response.put("status", "success");
+        } else {
+            response.put("message", "Calendar route not found or could not be deleted.");
+            response.put("status", "failure");
+        }
+        return response;
+    }
+
+
 
     private Long extractUserIdFromToken(String token) {
         return JwtUtil.extractUserIdFromToken(token);
