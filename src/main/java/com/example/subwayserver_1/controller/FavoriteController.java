@@ -47,7 +47,10 @@ public class FavoriteController {
     }
     // 즐겨찾기 삭제
     @DeleteMapping("/delete")
-    public Map<String, Object> deleteFavorite(@RequestHeader("id") Long id) {
+    public Map<String, Object> deleteFavorite(@RequestBody Map<String, Long> body) {
+        // 요청 바디에서 ID 추출
+        Long id = body.get("id");
+
         // 즐겨찾기 삭제 서비스 호출
         boolean isDeleted = favoriteService.deleteFavorite(id);
 
@@ -62,6 +65,7 @@ public class FavoriteController {
         }
         return response;
     }
+
 
     // 토큰에서 사용자 ID 추출
     private Long extractUserIdFromToken(String token) {

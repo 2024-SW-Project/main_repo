@@ -129,7 +129,10 @@ public class CalendarController {
         return response;
     }
     @DeleteMapping("/delete")
-    public Map<String, Object> deleteCalendarRoute(@RequestHeader("id") Long id) {
+    public Map<String, Object> deleteCalendarRoute(@RequestBody Map<String, Long> body) {
+        // 요청 바디에서 ID 추출
+        Long id = body.get("id");
+
         // 해당 ID로 일정 삭제
         boolean isDeleted = calendarService.deleteCalendarRoute(id);
 
@@ -144,8 +147,6 @@ public class CalendarController {
         }
         return response;
     }
-
-
 
     private Long extractUserIdFromToken(String token) {
         return JwtUtil.extractUserIdFromToken(token);
