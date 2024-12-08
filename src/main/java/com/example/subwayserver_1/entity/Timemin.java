@@ -24,15 +24,9 @@ public class Timemin {
     @Column(name = "express") // DB에서 0, 1로 저장되는 정수형 값
     private int express;
 
-    public boolean isExpress() {
-        return express == 1; // express가 1이면 true 반환
-    }
+    @Column(name = "updown") // 1: 상행/외선, 2: 하행/내선
+    private int updown;
 
-    public void setExpress(int express) {
-        this.express = express;
-    }
-
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -47,4 +41,14 @@ public class Timemin {
 
     public int getWeight() { return weight; }
     public void setWeight(int weight) { this.weight = weight; }
+
+    public int getExpress() { return express; }
+    public void setExpress(int express) { this.express = express; }
+
+    public int getUpdown() { return updown; }
+    public void setUpdown(int updown) { this.updown = updown; }
+
+    public boolean isExpress() {
+        return express == 1;
+    }
 }
