@@ -15,7 +15,14 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/subway/detail")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        } // 허용할 도메인
+)
+
 public class SubwayRouteController {
 
     @Autowired
@@ -159,44 +166,36 @@ public class SubwayRouteController {
     }
 
     private Map<String, Object> findClimateRoute(String startStationName, String endStationName) {
-        // 모든 Timemin 데이터와 Traintest 데이터를 한 번에 조회
         List<Timemin> edges = timeminRepository.findAll();
         List<Traintest> allStations = traintestRepository.findAll();
 
-        // 그래프 생성
         Map<String, List<Timemin>> graph = new HashMap<>();
         for (Timemin edge : edges) {
             graph.computeIfAbsent(edge.getDeparture(), k -> new ArrayList<>()).add(edge);
         }
 
-        // Traintest 데이터를 메모리에 캐싱
         Map<String, Traintest> stationCache = new HashMap<>();
         for (Traintest station : allStations) {
             stationCache.put(cleanStationName(station.getStinNm()) + "-" + station.getLnNm(), station);
         }
 
-        // 우선순위 큐 설정: 최소 환승, 최단 거리 우선
         PriorityQueue<Node> pq = new PriorityQueue<>((a, b) -> {
             int transferComparison = Integer.compare(a.transferCount, b.transferCount);
             if (transferComparison != 0) return transferComparison;
             return Integer.compare(a.totalWeight, b.totalWeight);
         });
 
-        // 시작 노드 추가
-        pq.add(new Node(startStationName, 0, 0, null, new ArrayList<>(), new StringBuilder()));
+        pq.add(new Node(startStationName, 0, 0, null, new ArrayList<>(), new StringBuilder(), false));
         Map<String, Integer> visited = new HashMap<>();
 
-        // 경로 탐색
         while (!pq.isEmpty()) {
             Node current = pq.poll();
 
-            // 이미 방문한 노드인지 확인
             if (visited.containsKey(current.station) && visited.get(current.station) <= current.totalWeight) {
                 continue;
             }
             visited.put(current.station, current.totalWeight);
 
-            // 출발역 체크
             if (current.route.isEmpty()) {
                 Traintest startStation = stationCache.get(cleanStationName(startStationName) + "-" + extractLine(startStationName));
                 if (startStation != null && Boolean.FALSE.equals(startStation.getBoarding())) {
@@ -204,15 +203,13 @@ public class SubwayRouteController {
                 }
             }
 
-            // 도착역 도달 시 체크
             if (current.station.equals(endStationName)) {
                 Traintest endStation = stationCache.get(cleanStationName(endStationName) + "-" + extractLine(endStationName));
                 if (endStation != null && Boolean.FALSE.equals(endStation.getAlighting())) {
                     return Collections.singletonMap("error", "도착역에서 기후동행 하차가 불가능합니다.");
                 }
 
-                // 경로 반환
-                current.route.add(formatStation(current.previousLine, current.station, false));
+                current.route.add(formatStation(current.previousLine, current.station, current.isExpress));
                 Map<String, Object> result = new HashMap<>();
                 result.put("route", String.join(" -> ", current.route));
                 result.put("totalTransfers", current.transferCount);
@@ -220,36 +217,37 @@ public class SubwayRouteController {
                 return result;
             }
 
-            // 환승 및 경로 확장
             for (Timemin edge : graph.getOrDefault(current.station, new ArrayList<>())) {
                 String nextStation = edge.getArrival();
                 String nextLine = edge.getLine();
+                boolean nextExpress = edge.isExpress();
 
-                // 기후동행 승차 여부 체크
                 Traintest nextStationInfo = stationCache.get(cleanStationName(nextStation) + "-" + nextLine);
                 if (nextStationInfo != null && Boolean.FALSE.equals(nextStationInfo.getBoarding())) {
-                    continue; // 기후동행 승차 불가능한 역 제외
+                    continue;
                 }
 
                 int newWeight = current.totalWeight + edge.getWeight();
                 int newTransferCount = current.transferCount;
 
-                // 환승 발생 여부 체크
-                if (current.previousLine != null && !current.previousLine.equals(nextLine)) {
+                // 급행 환승 처리
+                if (current.previousLine != null && (!current.previousLine.equals(nextLine) || current.isExpress != nextExpress)) {
+                    if (current.isExpress && !nextExpress) {
+                        // 급행에서 일반으로 갈아탈 때는 환승 가중치만 증가
+                        newWeight += 1; // 환승 가중치
+                    }
                     newTransferCount++;
                 }
 
                 List<String> newRoute = new ArrayList<>(current.route);
-                newRoute.add(formatStation(nextLine, current.station, edge.isExpress()));
+                newRoute.add(formatStation(nextLine, current.station, nextExpress));
 
-                pq.add(new Node(nextStation, newWeight, newTransferCount, nextLine, newRoute, current.calculationDetails.append(" + ").append(edge.getWeight())));
+                pq.add(new Node(nextStation, newWeight, newTransferCount, nextLine, newRoute, current.calculationDetails.append(" + ").append(edge.getWeight()), nextExpress));
             }
         }
 
-        // 경로가 없을 경우
         return Collections.singletonMap("error", "기후동행 조건을 만족하는 경로를 찾지 못했습니다.");
     }
-
 
     private Map<String, Object> findRouteByStrategy(String startStationName, String endStationName, boolean isClimateCardEligible, boolean prioritizeTransfers) {
         List<Timemin> edges = timeminRepository.findAll();
@@ -265,7 +263,7 @@ public class SubwayRouteController {
             return Integer.compare(a.totalWeight, b.totalWeight);
         });
 
-        pq.add(new Node(startStationName, 0, 0, null, new ArrayList<>(), new StringBuilder()));
+        pq.add(new Node(startStationName, 0, 0, null, new ArrayList<>(), new StringBuilder(), false));
         Map<String, Integer> visited = new HashMap<>();
 
         while (!pq.isEmpty()) {
@@ -277,7 +275,7 @@ public class SubwayRouteController {
             visited.put(current.station, current.totalWeight);
 
             if (current.station.equals(endStationName)) {
-                current.route.add(formatStation(current.previousLine, current.station, false));
+                current.route.add(formatStation(current.previousLine, current.station, current.isExpress));
                 Map<String, Object> result = new HashMap<>();
                 result.put("start_station_name", startStationName);
                 result.put("end_station_name", endStationName);
@@ -292,23 +290,29 @@ public class SubwayRouteController {
             for (Timemin edge : graph.getOrDefault(current.station, new ArrayList<>())) {
                 String nextStation = edge.getArrival();
                 String nextLine = edge.getLine();
+                boolean nextExpress = edge.isExpress();
 
                 int newWeight = current.totalWeight + edge.getWeight();
                 int newTransferCount = current.transferCount;
 
-                if (current.previousLine != null && !current.previousLine.equals(nextLine)) {
+                // 급행 환승 처리
+                if (current.previousLine != null && (!current.previousLine.equals(nextLine) || current.isExpress != nextExpress)) {
+                    if (current.isExpress && !nextExpress) {
+                        newWeight += 1; // 환승 가중치
+                    }
                     newTransferCount++;
                 }
 
                 List<String> newRoute = new ArrayList<>(current.route);
-                newRoute.add(formatStation(nextLine, current.station, edge.isExpress()));
+                newRoute.add(formatStation(nextLine, current.station, nextExpress));
 
-                pq.add(new Node(nextStation, newWeight, newTransferCount, nextLine, newRoute, current.calculationDetails.append(" + ").append(edge.getWeight())));
+                pq.add(new Node(nextStation, newWeight, newTransferCount, nextLine, newRoute, current.calculationDetails.append(" + ").append(edge.getWeight()), nextExpress));
             }
         }
 
         return Collections.singletonMap("error", "경로를 찾지 못했습니다.");
     }
+
 
     private String formatStation(String line, String station, boolean isExpress) {
         return (isExpress ? "(급행) " : "") + "(" + line + ") " + station;
@@ -340,14 +344,17 @@ public class SubwayRouteController {
         String previousLine;
         List<String> route;
         StringBuilder calculationDetails;
+        boolean isExpress;
 
-        public Node(String station, int totalWeight, int transferCount, String previousLine, List<String> route, StringBuilder calculationDetails) {
+        public Node(String station, int totalWeight, int transferCount, String previousLine, List<String> route, StringBuilder calculationDetails, boolean isExpress) {
             this.station = station;
             this.totalWeight = totalWeight;
             this.transferCount = transferCount;
             this.previousLine = previousLine;
             this.route = route;
             this.calculationDetails = calculationDetails;
+            this.isExpress = isExpress;
         }
     }
+
 }

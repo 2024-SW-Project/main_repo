@@ -11,7 +11,14 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import java.util.*;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")  // 허용할 도메인 명시
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        } // 허용할 도메인
+)
+
 
 public class TimeminController {
 

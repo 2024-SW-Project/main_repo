@@ -4,7 +4,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")  // 허용할 도메인 명시
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        } // 허용할 도메인
+)
+
 
 public class EnvTestController {
 

@@ -19,7 +19,14 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/mypage")
-@CrossOrigin(origins = "http://localhost:5173")  // 허용할 도메인 명시
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        } // 허용할 도메인
+)
+
 public class MypageController {
 
     @Value("${jwt.secret}") // 환경 변수에서 JWT_SECRET 값 로드
@@ -59,7 +66,7 @@ public class MypageController {
 
         UserDetails user = optionalUser.get();
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("profile_picture", "http://example.com/profile/" + user.getId());
+        response.put("profile_picture", user.getProfilePicture()); // 프로필 사진 ID
         response.put("name", user.getName());
         response.put("username", user.getUsername());
         response.put("nickname", user.getNickname());
@@ -109,7 +116,6 @@ public class MypageController {
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
-
     /**
      * 개인정보 수정 요청
      */
@@ -147,15 +153,22 @@ public class MypageController {
             user.setIsClimateCardEligible((Boolean) updateRequest.get("isClimateCardEligible"));
         }
 
+        if (updateRequest.containsKey("profile_picture")) {
+            user.setProfilePicture((Integer) updateRequest.get("profile_picture")); // 프로필 사진 업데이트
+        }
+
         // 업데이트된 사용자 정보 저장
         userDetailsRepository.save(user);
 
         // 응답 반환
-        return ResponseEntity.ok(Map.of("data", Map.of("name", user.getName(), "nickname", user.getNickname(),
-                        "email", user.getEmail(), "isClimateCardEligible", user.getIsClimateCardEligible()),
-                "message", "Profile updated successfully"));
+        return ResponseEntity.ok(Map.of("data", Map.of(
+                "name", user.getName(),
+                "nickname", user.getNickname(),
+                "email", user.getEmail(),
+                "isClimateCardEligible", user.getIsClimateCardEligible(),
+                "profile_picture", user.getProfilePicture()
+        ), "message", "Profile updated successfully"));
     }
-
 
     /**
      * 회원탈퇴
@@ -208,6 +221,4 @@ public class MypageController {
             return ResponseEntity.status(500).body(Map.of("error_message", e.getMessage()));
         }
     }
-
-
 }

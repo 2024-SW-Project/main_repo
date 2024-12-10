@@ -73,7 +73,14 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/subway/save/calendar")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        } // 허용할 도메인
+)
+
 public class CalendarController {
 
     private final CalendarService calendarService;

@@ -12,7 +12,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/secure")
-@CrossOrigin(origins = "http://localhost:5173")  // 허용할 도메인 명시
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        } // 허용할 도메인
+)
+
 public class SecureController {
 
     // 인증된 요청 처리

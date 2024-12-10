@@ -29,11 +29,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin(
-        origins = "http://localhost:5173", // 허용할 도메인
+        origins = {
+                "http://localhost:5173",
+                "https://namotigerta.com",
+                "https://namotigerta.netlify.app"
+        }, // 허용할 도메인
         allowedHeaders = {"Authorization", "Content-Type"}, // 허용할 헤더
         exposedHeaders = {"Authorization", "Refresh-Token"}, // 프론트엔드에서 접근 가능하게 노출
         allowCredentials = "true" // 쿠키 사용 시 true
 )
+
 public class AuthController {
 
     @Autowired

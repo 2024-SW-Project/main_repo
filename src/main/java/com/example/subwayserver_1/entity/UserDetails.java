@@ -31,6 +31,9 @@ public class UserDetails {
     @Column(name = "refresh_token", nullable = true)
     private String refreshToken;
 
+    @Column(name = "profile_picture", nullable = false, columnDefinition = "INT DEFAULT 1")
+    private Integer profilePicture; // 프로필 사진 ID
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -94,5 +97,13 @@ public class UserDetails {
 
     public void setRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
+    }
+
+    public Integer getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(Integer profilePicture) {
+        this.profilePicture = profilePicture;
     }
 }
