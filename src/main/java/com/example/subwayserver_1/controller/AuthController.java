@@ -49,7 +49,8 @@ public class AuthController {
 
     static {
         Dotenv dotenv = Dotenv.configure().load();
-        SECRET_KEY = dotenv.get("JWT_SECRET", "defaultSecretKey123");
+        SECRET_KEY = dotenv.get("JWT_SECRET"); // .env에서 JWT_SECRET 값 로드
+
     }
 
     private static final long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 60; // 1시간

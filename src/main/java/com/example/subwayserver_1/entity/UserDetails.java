@@ -32,7 +32,8 @@ public class UserDetails {
     private String refreshToken;
 
     @Column(name = "profile_picture", nullable = false, columnDefinition = "INT DEFAULT 1")
-    private Integer profilePicture; // 프로필 사진 ID
+    private Integer profilePicture = 1; // Java에서 기본값 설정
+
 
     // Getters and Setters
     public Long getId() {
